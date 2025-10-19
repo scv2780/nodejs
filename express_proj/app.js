@@ -5,7 +5,9 @@ const fs = require("fs");
 const cookieSession = require("cookie-session");
 const multer = require("multer");
 // 업로드 폴더 없으면 자동 생성
-fs.mkdirSync("uploads", { recursive: true });
+fs.mkdirSync("uploads", {
+  recursive: true,
+});
 
 // 라우터 모듈
 const customerRouter = require("./routes/customers");
@@ -18,7 +20,11 @@ const app = express();
 // body-parser 대신 express 내장함수 사용.
 // header/body
 // parding application/x-www-form-urlencoded
-app.use(express.urlencoded({ extended: false })); //user-1234&name=hong
+app.use(
+  express.urlencoded({
+    extended: false,
+  })
+); //user-1234&name=hong
 // parsing application/json
 app.use(express.json());
 
@@ -46,7 +52,9 @@ const storage = multer.diskStorage({
 });
 
 // multer 객체 생성.
-const upload = multer({ storage: storage });
+const upload = multer({
+  storage: storage,
+});
 
 // 라우팅 정보가 많으면 파일로 나눠서 작성.
 // customers.js, products.js
@@ -82,8 +90,9 @@ app.post("/", (req, res) => {
 // });
 
 // 숙제: 여러파일 업로드 처리. 하는중
-app.post("/upload", upload.single("fileInput"), (req, res, next) => {
-  if (!req.file) return next(new Error("파일이 업로드되지 않았습니다."));
+app.post("/upload", upload.array("files", 20), (req, res, next) => {
+  if (!req.files || req.files.length == 0)
+    return next(new Error("파일이 업로드되지 않았습니다."));
   console.log(req.file); // 업로드된 파일 정보.
   res.send("파일 업로드 완료!");
 });
@@ -145,13 +154,38 @@ app.post("/login", (req, res) => {
       res.status(500).send("Error reading file");
       return;
     }
-    const lines = data.split("\n").find((member) => {
-      const [user, plass, name] = member.split(",");
-      return [user, plass, name];
+
+    const lines = data
+      .split("\n")
+      .map((line) => {
+        return line.trim();
+      })
+      .filter(Boolean);
+
+    const users = lines.map((line) => {
+      const [id, pw, uname] = line.split(",");
+      return { id, pw, uname };
     });
 
-    console.log(lines);
-    res.send(lines);
+    const inputId = req.body.userId.trim();
+    const inputPw = req.body.userPw.trim();
+
+    const user = users.find((u) => u.id === inputId && u.pw === inputPw);
+
+    if (user) {
+      res.send(`
+        <script>
+          alert("로그인 성공: ${user.uname}");
+        </script>
+        `);
+    } else {
+      res.send(`
+        <script>
+          alert("로그인 실패: 아이디 비밀번호가 올바르지 않습니다.");
+          history.back();
+        </script>
+        `);
+    }
   });
 });
 
