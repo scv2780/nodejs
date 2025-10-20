@@ -4,6 +4,7 @@ const express = require("express");
 const mysql = require("./sql/index");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const { getCryptoPassword } = require("./sql/crypto");
 
 // express app setup
 const app = express();
@@ -109,48 +110,72 @@ app.get("/sendmail", async (req, res) => {
 
 // 회원가입
 app.post("/signup", async (req, res) => {
-  // console.log(req.body);
-  let userid = req.body.userid;
-  let password = req.body.password;
-  let email = req.body.email;
-  let phone = req.body.phone;
-  let salt = crypto.randomBytes(64).toString("base64");
+  try {
+    // console.log(req.body);
+    let userid = req.body.userid;
+    let password = req.body.password;
+    let email = req.body.email;
+    let phone = req.body.phone;
+    let salt = crypto.randomBytes(64).toString("base64");
 
-  async function getCryptoPassword(password) {
-    return new Promise((resolve, reject) => {
-      crypto.pbkdf2(password, salt, 100000, 64, "sha512", (err, key) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(key.toString("base64"));
-      });
-    });
+    let hashKey = await getCryptoPassword(password, salt);
+
+    let result = await mysql.queryExecute(
+      `insert into customers
+      set name = ?,
+      email = ?,
+      phone = ?,
+      address = ?,
+      password_hash = ?,
+      password_salt = ?`,
+      [userid, email, phone, "", hashKey, salt]
+    );
+    if (result.affectedRows > 0) {
+      res.status(201).send("회원가입이 완료되었습니다.");
+    } else {
+      res.status(500).send("회원가입에 실패했습니다.");
+    }
+  } catch {
+    console.error(`회원가입 중 오류 발생`, err);
+    res.status(500).send(`서버 오류가 발생했습니다.`);
   }
-
-  let hashKey = await getCryptoPassword(password);
-
-  let result = await mysql.queryExecute(
-    `insert into customers
-    set name = ?,
-        email = ?,
-        phone = ?,
-        address = ?,
-        password_hash = ?,
-        password_salt = ?`,
-    [userid, email, phone, "", hashKey, salt]
-  );
-
-  res.send(result);
 });
 
 // 로그인 만들기
+app.post("/sigin", async (req, res) => {
+  let email = req.body.email;
+  let password = req.body.password;
+
+  let result = await mysql.queryExecute(
+    `select * from customers where email = ?`,
+    [email]
+  );
+
+  if (result.length === 0) {
+    res.status(401).send("이메일이 존재하지 않습니다.");
+    return;
+  }
+
+  getCryptoPassword(password, result[0].password_salt)
+    .then((inputHash) => {
+      if (inputHash == result[0].password_hash) {
+        res.send(`로그인 성공: ${result[0].email}`);
+      } else {
+        res.status(401).send(`비밀번호가 일치하지 않습니다.`);
+      }
+      // 배열의 모든 값을 보려면 어떻게 하는지 물어보기
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).send("서버 오류");
+    });
+});
 
 // 함수 다른 폴더로 옮겨서 정리해보기
 
 // nodemailer test route.
 
-//customers table - select all
+// customers table - select all
 app.get("/customers", async (req, res) => {
   let result = await mysql.queryExecute("select * from customers", []);
   res.send(result);
