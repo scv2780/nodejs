@@ -1,6 +1,7 @@
 // app.js
 
 const express = require("express");
+const cors = require("cors");
 const mysql = require("./sql/index");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
@@ -24,12 +25,13 @@ const transporter = nodemailer.createTransport({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// 정적디렉토리 설정.
+app.use(express.static("public"));
+app.use(cors());
+
 app.get("/", (req, res) => {
   res.send("hello World!");
 });
-
-// 정적디렉토리 설정.
-app.use(express.static("public"));
 
 // 메일 보내기
 // app.get("/sendmail", (req, res) => {
@@ -113,22 +115,25 @@ app.post("/signup", async (req, res) => {
   try {
     // console.log(req.body);
     let userid = req.body.userid;
+    let name = req.body.name;
     let password = req.body.password;
     let email = req.body.email;
     let phone = req.body.phone;
+    let address = req.body.address;
     let salt = crypto.randomBytes(64).toString("base64");
 
     let hashKey = await getCryptoPassword(password, salt);
 
     let result = await mysql.queryExecute(
       `insert into customers
-      set name = ?,
+      set id = ?,
+      name = ?,
       email = ?,
       phone = ?,
       address = ?,
       password_hash = ?,
       password_salt = ?`,
-      [userid, email, phone, "", hashKey, salt]
+      [userid, name, email, phone, address, hashKey, salt]
     );
     if (result.affectedRows > 0) {
       res.status(201).send("회원가입이 완료되었습니다.");
