@@ -1,6 +1,8 @@
 // app.js
 
 const express = require("express");
+const cors = require("cors");
+
 const mysql = require("./sql/index");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
@@ -24,12 +26,13 @@ const transporter = nodemailer.createTransport({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// 정적디렉토리 설정.
+app.use(express.static("public"));
+app.use(cors());
+
 app.get("/", (req, res) => {
   res.send("hello World!");
 });
-
-// 정적디렉토리 설정.
-app.use(express.static("public"));
 
 // 메일 보내기
 // app.get("/sendmail", (req, res) => {
