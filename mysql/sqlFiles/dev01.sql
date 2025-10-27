@@ -26,3 +26,26 @@ CREATE TABLE `product_image` (
   PRIMARY KEY (`id`));
   
   select * from product_image;
+  
+-- 글번호, 제목, 내용, 작성자, 작성일시
+create table tbl_board (
+`id` int not null auto_increment, -- 키.
+`title` varchar(50) not null,
+`content` varchar(500) not null,
+`writer` varchar(50) not null,
+`write_date` timestamp default now(), -- 등록시간.
+primary key (`id`));
+
+insert into tbl_board (title, content, writer)
+values('날씨가 추워요', '오늘은 날씨가 많이 추워요', 'user01');
+insert into tbl_board set title='날씨가 좋아요',content='해가 밝게 떴네요',writer='user02';
+select * from tbl_board;
+update tbl_board
+set title='내일은 날씨가?',content='좋아질까요?'
+where id = 2;
+-- CRUD => 추가,수정,삭제,조회.
+-- DB+Expres => localhost:3000/boards (GET) 목록.
+--              localhost:3000/board (POST) 등록.
+--                            /board/:id (GET) 조회.
+--                            /board (PUT) 수정.
+--                            /board/:id (DELTE) 삭제.
