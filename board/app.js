@@ -1,6 +1,7 @@
 // board 서버 프로그램 생성.
 const express = require("express");
 const cors = require("cors");
+const session = require("express-session");
 const mysql = require("./sql/index");
 
 const app = express();
@@ -9,8 +10,27 @@ const port = 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
+// 세션(개발용: 메모리 스토어)
+// prod에서는 connect-redis 같은 외부 스토어 권장
+app.use(
+  session({
+    secret: "dev-secret-change-me", // 임의 문자열
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 2, // 2시간
+      httpOnly: true,
+      sameSite: "lax",
+    },
+  })
+);
 app.use(express.static("public"));
-app.use(cors());
 
 // Root 페이지.
 app.get("/", (req, res) => {
@@ -90,6 +110,24 @@ app.delete("/board/:id", async (req, res) => {
   } catch (err) {
     console.error("DELETE /board/:id error:", err);
     res.status(500).json({ message: "Failed to delete board" });
+  }
+});
+
+// 댓글 목록.
+app.get("/reply/:board_id", async (req, res) => {
+  try {
+    const board_id = Number(req.params.board_id);
+    if (!board_id)
+      return res.status(400).json({ messagr: "유효한 board_id 필요합니다." });
+    const rows = await mysql.queryExecute(
+      "SELECT * FROM tbl_reply WHERE board_id = ?",
+      [board_id]
+    );
+    // mysql.queryExecute가 rows만 반환하도록 가정. (배열이면 그대로 보내면 OK)
+    res.json(rows);
+  } catch (err) {
+    console.error("GET /reply error:", err);
+    res.status(500).json({ message: "Failed to fetch reply" });
   }
 });
 
